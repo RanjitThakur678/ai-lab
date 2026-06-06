@@ -1,0 +1,10 @@
+services:
+  dictionary-bot:
+    build: .
+    image: dictionary-bot:latest
+    container_name: dictionary-bot
+    env_file:
+      - .env
+    stdin_open: true
+    tty: true
+    command: python -m dictionary_bot
