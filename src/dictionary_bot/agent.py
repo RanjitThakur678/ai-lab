@@ -13,7 +13,7 @@ class DictionaryBotError(Exception):
 
 
 class DictionaryAgent:
-    """A conversational English dictionary agent powered by OpenAI."""
+    """A conversational English dictionary agent."""
 
     MAX_HISTORY_ESTIMATED_TOKENS = 8000
     AVG_CHARS_PER_TOKEN = 4
@@ -25,7 +25,10 @@ class DictionaryAgent:
             config: Application configuration including API key and model.
         """
         self._config = config
-        self._client = OpenAI(api_key=config.openai_api_key)
+        client_kwargs: dict = {"api_key": config.api_key}
+        if config.base_url:
+            client_kwargs["base_url"] = config.base_url
+        self._client = OpenAI(**client_kwargs)
         self._history: list[dict[str, str]] = []
 
     def chat(self, message: str) -> str:
@@ -47,14 +50,14 @@ class DictionaryAgent:
 
         try:
             response = self._client.chat.completions.create(
-                model=self._config.openai_model,
+                model=self._config.model,
                 messages=messages,
                 max_tokens=self._config.max_tokens,
                 temperature=self._config.temperature,
             )
         except AuthenticationError as exc:
             raise DictionaryBotError(
-                "Invalid OpenAI API key. Please check your OPENAI_API_KEY."
+                "Invalid API key. Please check your credentials."
             ) from exc
         except RateLimitError as exc:
             raise DictionaryBotError(
@@ -62,7 +65,7 @@ class DictionaryAgent:
             ) from exc
         except APIError as exc:
             raise DictionaryBotError(
-                f"OpenAI API error: {exc.message}"
+                f"API error: {exc.message}"
             ) from exc
         except Exception as exc:
             raise DictionaryBotError(

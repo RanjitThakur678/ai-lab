@@ -15,8 +15,10 @@ class TestDictionaryAgent:
     def config(self):
         """Fixture providing a test configuration."""
         return Config(
-            openai_api_key="sk-test",
-            openai_model="gpt-4o-mini",
+            provider="openai",
+            api_key="sk-test",
+            base_url=None,
+            model="gpt-4o-mini",
             max_tokens=500,
             temperature=0.7,
         )
@@ -97,7 +99,7 @@ class TestDictionaryAgent:
         )
 
         agent = DictionaryAgent(config)
-        with pytest.raises(DictionaryBotError, match="OpenAI API error"):
+        with pytest.raises(DictionaryBotError, match="API error"):
             agent.chat("hello")
 
     def test_chat_authentication_error(self, config, mock_client):
@@ -111,7 +113,7 @@ class TestDictionaryAgent:
         )
 
         agent = DictionaryAgent(config)
-        with pytest.raises(DictionaryBotError, match="Invalid OpenAI API key"):
+        with pytest.raises(DictionaryBotError, match="Invalid API key"):
             agent.chat("hello")
 
     def test_chat_rate_limit_error(self, config, mock_client):
@@ -146,3 +148,22 @@ class TestDictionaryAgent:
         history = agent.conversation_history
         estimated_tokens = sum(len(m["content"]) // 4 for m in history)
         assert estimated_tokens <= DictionaryAgent.MAX_HISTORY_ESTIMATED_TOKENS
+
+    def test_chat_with_custom_base_url(self, mock_client):
+        """Test that custom base_url is passed to the OpenAI client."""
+        config = Config(
+            provider="custom",
+            api_key="custom-key",
+            base_url="https://api.example.com/v1",
+            model="custom-model",
+            max_tokens=500,
+            temperature=0.7,
+        )
+        with patch("dictionary_bot.agent.OpenAI") as mock_openai:
+            client = MagicMock()
+            mock_openai.return_value = client
+            agent = DictionaryAgent(config)
+            mock_openai.assert_called_once_with(
+                api_key="custom-key",
+                base_url="https://api.example.com/v1",
+            )

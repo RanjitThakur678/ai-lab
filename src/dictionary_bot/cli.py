@@ -1,6 +1,8 @@
 """Interactive CLI for the Dictionary Bot."""
 
+import argparse
 import sys
+from typing import Optional
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -10,7 +12,6 @@ from rich.text import Text
 
 from dictionary_bot.agent import DictionaryAgent, DictionaryBotError
 from dictionary_bot.config import Config, load_config
-
 
 console = Console()
 
@@ -59,24 +60,71 @@ def print_error(message: str) -> None:
     console.print(Panel(message, border_style="red", title="Error"))
 
 
-def main() -> int:
+def _run_demo() -> int:
+    """Run the built-in demo mode (no API key required)."""
+    from dictionary_bot.demo_mode import DemoAgent
+
+    agent = DemoAgent()
+    agent.run()
+    return 0
+
+
+def main(argv: Optional[list[str]] = None) -> int:
     """Run the interactive CLI.
 
     Returns:
         Exit code (0 for clean exit).
     """
+    parser = argparse.ArgumentParser(
+        description="Dictionary Bot — conversational English tutor",
+    )
+    parser.add_argument(
+        "--provider",
+        choices=["openai", "ollama", "kimchi", "custom"],
+        default=None,
+        help="LLM provider to use (default: openai)",
+    )
+    parser.add_argument(
+        "--base-url",
+        default=None,
+        help="Override the API base URL",
+    )
+    parser.add_argument(
+        "--model",
+        default=None,
+        help="Override the model name",
+    )
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run demo mode without API calls",
+    )
+    args = parser.parse_args(argv)
+
+    if args.demo:
+        return _run_demo()
+
     try:
-        config = load_config()
+        config = load_config(
+            provider=args.provider,
+            base_url=args.base_url,
+            model=args.model,
+        )
     except ValueError as exc:
         console.print(f"[red]Configuration error:[/red] {exc}")
         console.print(
-            "[dim]Tip: Copy .env.example to .env and add your OPENAI_API_KEY.[/dim]"
+            "[dim]Tip: Copy .env.example to .env and configure your provider.[/dim]"
+        )
+        console.print(
+            "[dim]Or run with --demo for a no-API preview.[/dim]"
         )
         return 1
 
     agent = DictionaryAgent(config)
 
     print_welcome()
+    console.print(f"[dim]Provider: {config.provider} | Model: {config.model}[/dim]")
+    console.print()
 
     while True:
         try:
